@@ -84,15 +84,34 @@ class CheckSession(Resource):
         
         return {}, 401
 
+def check_if_loggedin(func):
+    def wrapper(*args, **kwargs):
+        if "user_id" not in session or session["user_id"] == None:
+            return make_response({"error":"unauthorized"},401)
+        else:
+            return func(*args, **kwargs)
+    return wrapper
+
+
 class MemberOnlyIndex(Resource):
-    
-    def get(self):
-        pass
+   
+   @check_if_loggedin 
+   def get(self):
+        user_id = session.get('user_id')
+        if user_id:
+            articles = Article.query.filter(Article.is_member_only == True).all()
+            return make_response(jsonify([article.to_dict() for article in articles]), 200)
+        else:
+            return make_response(jsonify({'message': 'Unauthorized'}), 401 )
 
 class MemberOnlyArticle(Resource):
-    
-    def get(self, id):
-        pass
+   @check_if_loggedin
+   def get(self, id):
+        article = Article.query.filter_by(id=id, is_member_only=True).first()
+        if article:
+            return make_response(jsonify(article.to_dict()), 200)
+        else:
+            return make_response(jsonify({'message': 'Article not found'}), 404)
 
 api.add_resource(ClearSession, '/clear', endpoint='clear')
 api.add_resource(IndexArticle, '/articles', endpoint='article_list')
@@ -100,9 +119,9 @@ api.add_resource(ShowArticle, '/articles/<int:id>', endpoint='show_article')
 api.add_resource(Login, '/login', endpoint='login')
 api.add_resource(Logout, '/logout', endpoint='logout')
 api.add_resource(CheckSession, '/check_session', endpoint='check_session')
-api.add_resource(MemberOnlyIndex, '/members_only_articles', endpoint='member_index')
-api.add_resource(MemberOnlyArticle, '/members_only_articles/<int:id>', endpoint='member_article')
+api.add_resource(MemberOnlyIndex, '/members_only_articles', endpoint='member_index',methods=["GET"])
+api.add_resource(MemberOnlyArticle, '/members_only_articles/<int:id>', endpoint='member_article',methods=["GET"])
 
 
 if __name__ == '__main__':
-    app.run(port=5555, debug=True)
+    app.run(port=5550, debug=True)
